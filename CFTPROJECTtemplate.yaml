@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: StackSet template to create a basic VPC with public and private subnets, NAT, and an RDS MySQL DB
-
+ 
 Parameters:
   MyVpcCidr:
     Type: String
@@ -26,7 +26,7 @@ Parameters:
     Description: "Root password for the MySQL Database"
     Default: "adminadmin"
     NoEcho: true
-
+ 
 Mappings:
   SubnetConfig:
     Vpc10:
@@ -43,12 +43,13 @@ Mappings:
       PublicSubnetAZ2CIDR: "20.0.12.0/22"
       PrivateSubnetAZ2CIDR1: "20.0.16.0/22"
       PrivateSubnetAZ2CIDR2: "20.0.20.0/22"
-
+ 
+ 
 Conditions:
   is_cidr_10: !Equals [!Ref MyVpcCidr, "10.0.0.0/16"]
-
+ 
 Resources:
-  NewVpc:
+  MyVpc:
     Type: AWS::EC2::VPC
     Properties:
       CidrBlock: !Ref MyVpcCidr
@@ -57,24 +58,24 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub "${AWS::StackName}-My-VPC"
-
-  NewIGW:
+ 
+  MyIGW:
     Type: AWS::EC2::InternetGateway
     Properties:
       Tags:
         - Key: Name
           Value: !Sub "${AWS::StackName}-Internet-Gateway"
-
-  NewIGWAttachment:
+ 
+  MyIGWAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
-      VpcId: !Ref NewVpc
-      InternetGatewayId: !Ref NewIGW
-
-  NewPubSub1:
+      VpcId: !Ref MyVpc
+      InternetGatewayId: !Ref MyIGW
+ 
+  MyPubSub1:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref NewVpc
+      VpcId: !Ref MyVpc
       AvailabilityZone: !Select [0, !GetAZs '']
       CidrBlock: !If
         - is_cidr_10
@@ -84,11 +85,11 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub "${AWS::StackName}-Public-Subnet-AZ1"
-
-  NewPubSub2:
+ 
+  MyPubSub2:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref NewVpc
+      VpcId: !Ref MyVpc
       AvailabilityZone: !Select [1, !GetAZs '']
       CidrBlock: !If
         - is_cidr_10
@@ -98,11 +99,11 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub "${AWS::StackName}-Public-Subnet-AZ2"
-
-  NewPriSub1:
+ 
+  MyPriSub1:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref NewVpc
+      VpcId: !Ref MyVpc
       AvailabilityZone: !Select [0, !GetAZs '']
       CidrBlock: !If
         - is_cidr_10
@@ -112,11 +113,11 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub "${AWS::StackName}-Private-Subnet-1-AZ1"
-
-  NewPriSub2:
+ 
+  MyPriSub2:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref NewVpc
+      VpcId: !Ref MyVpc
       AvailabilityZone: !Select [0, !GetAZs '']
       CidrBlock: !If
         - is_cidr_10
@@ -126,11 +127,11 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub "${AWS::StackName}-Private-Subnet-2-AZ1"
-
-  NewPriSub3:
+ 
+  MyPriSub3:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref NewVpc
+      VpcId: !Ref MyVpc
       AvailabilityZone: !Select [1, !GetAZs '']
       CidrBlock: !If
         - is_cidr_10
@@ -140,11 +141,11 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub "${AWS::StackName}-Private-Subnet-1-AZ2"
-
-  NewPriSub4:
+ 
+  MyPriSub4:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref NewVpc
+      VpcId: !Ref MyVpc
       AvailabilityZone: !Select [1, !GetAZs '']
       CidrBlock: !If
         - is_cidr_10
@@ -154,99 +155,101 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub "${AWS::StackName}-Private-Subnet-2-AZ2"
-
-  NewEIPForNat:
+ 
+ 
+  MyEIPForNat:
     Type: AWS::EC2::EIP
     Properties:
       Domain: vpc
       Tags:
         - Key: Name
           Value: !Sub "${AWS::StackName}-NAT-EIP"
-
-  NewNatGateway:
+ 
+  MyNatGateway:
     Type: AWS::EC2::NatGateway
-    DependsOn: NewPubSub1
+    DependsOn: MyPubSub1
     Properties:
       ConnectivityType: public
-      SubnetId: !Ref NewPubSub1
-      AllocationId: !GetAtt NewEIPForNat.AllocationId
+      SubnetId: !Ref MyPubSub1
+      AllocationId: !GetAtt MyEIPForNat.AllocationId
       Tags:
         - Key: Name
           Value: !Sub "${AWS::StackName}-NAT-Gateway"
-
-  NewPubRouteTable:
+ 
+  MyPubRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
-      VpcId: !Ref NewVpc
+      VpcId: !Ref MyVpc
       Tags:
         - Key: Name
           Value: !Sub "${AWS::StackName}-Public-RT"
-
-  NewPriRouteTable:
+ 
+  MyPriRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
-      VpcId: !Ref NewVpc
+      VpcId: !Ref MyVpc
       Tags:
         - Key: Name
           Value: !Sub "${AWS::StackName}-Private-RT"
-
-  NewPubRTAssoc1:
+ 
+  MyPubRTAssoc1:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId: !Ref NewPubSub1
-      RouteTableId: !Ref NewPubRouteTable
-
-  NewPubRTAssoc2:
+      SubnetId: !Ref MyPubSub1
+      RouteTableId: !Ref MyPubRouteTable
+ 
+  MyPubRTAssoc2:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId: !Ref NewPubSub2
-      RouteTableId: !Ref NewPubRouteTable
-
-  NewPriRTAssoc1:
+      SubnetId: !Ref MyPubSub2
+      RouteTableId: !Ref MyPubRouteTable
+ 
+  MyPriRTAssoc1:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId: !Ref NewPriSub1
-      RouteTableId: !Ref NewPriRouteTable
-
-  NewPriRTAssoc2:
+      SubnetId: !Ref MyPriSub1
+      RouteTableId: !Ref MyPriRouteTable
+ 
+  MyPriRTAssoc2:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId: !Ref NewPriSub2
-      RouteTableId: !Ref NewPriRouteTable
-
-  NewPriRTAssoc3:
+      SubnetId: !Ref MyPriSub2
+      RouteTableId: !Ref MyPriRouteTable
+ 
+  MyPriRTAssoc3:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId: !Ref NewPriSub3
-      RouteTableId: !Ref NewPriRouteTable
-
-  NewPriRTAssoc4:
+      SubnetId: !Ref MyPriSub3
+      RouteTableId: !Ref MyPriRouteTable
+ 
+  MyPriRTAssoc4:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId: !Ref NewPriSub4
-      RouteTableId: !Ref NewPriRouteTable
-
-  NewPubDefaultRoute:
+      SubnetId: !Ref MyPriSub4
+      RouteTableId: !Ref MyPriRouteTable
+ 
+  # Default Routes
+  MyPubDefaultRoute:
     Type: AWS::EC2::Route
-    DependsOn: NewIGWAttachment
+    DependsOn: MyIGWAttachment
     Properties:
-      RouteTableId: !Ref NewPubRouteTable
+      RouteTableId: !Ref MyPubRouteTable
       DestinationCidrBlock: "0.0.0.0/0"
-      GatewayId: !Ref NewIGW
-
-  NewPriDefaultRoute:
+      GatewayId: !Ref MyIGW
+ 
+  MyPriDefaultRoute:
     Type: AWS::EC2::Route
-    DependsOn: NewNatGateway
+    DependsOn: MyNatGateway
     Properties:
-      RouteTableId: !Ref NewPriRouteTable
+      RouteTableId: !Ref MyPriRouteTable
       DestinationCidrBlock: "0.0.0.0/0"
-      NatGatewayId: !Ref NewNatGateway
-
-  NewDBSG:
+      NatGatewayId: !Ref MyNatGateway
+ 
+  MyDBSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: "Database SG"
-      VpcId: !Ref NewVpc
+      VpcId: !Ref MyVpc
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 3306
@@ -255,22 +258,22 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub "${AWS::StackName}-DB-SG"
-
-  NewDBSubnetGroup:
+ 
+  MyDBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
       DBSubnetGroupDescription: "Subnets for MySQL"
       DBSubnetGroupName: !Ref MyDBSubnetGroupName
       SubnetIds:
-        - !Ref NewPriSub2
-        - !Ref NewPriSub4
+        - !Ref MyPriSub2
+        - !Ref MyPriSub4
       Tags:
         - Key: Name
           Value: !Sub "${AWS::StackName}-DBSubnetGroup"
-
-  NewMySQLDatabase:
+ 
+  MySQLDatabase:
     Type: AWS::RDS::DBInstance
-    DependsOn: NewDBSubnetGroup
+    DependsOn: MyDBSubnetGroup
     Properties:
       DBInstanceIdentifier: !Ref MyDBName
       Engine: mysql
@@ -282,13 +285,12 @@ Resources:
       MultiAZ: true
       PubliclyAccessible: true
       VPCSecurityGroups:
-        - !Ref NewDBSG
-      DBSubnetGroupName: !Ref NewDBSubnetGroup
+        - !Ref MyDBSG
+      DBSubnetGroupName: !Ref MyDBSubnetGroup
       Tags:
         - Key: Name
           Value: !Sub "${AWS::StackName}-SQLDatabase"
-
-  NewEKSClusterRole:
+  EKSClusterRole:
     Type: AWS::IAM::Role
     Properties:
       RoleName: EKSClusterRole
@@ -305,8 +307,8 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub "${AWS::StackName}-EKSCluster-Role"
-
-  NewEKSNodeGroupRole:
+ 
+  EKSNodeGroupRole:
     Type: AWS::IAM::Role
     Properties:
       RoleName: EKSNodeGroupRole
@@ -342,32 +344,36 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub "${AWS::StackName}-EKS-NodeGroupRole"
-
-  NewEKSCluster:
+ 
+ 
+  MyEKSCluster:
     Type: AWS::EKS::Cluster
     Properties:
       Name: MyEKSCluster
-      RoleArn: !GetAtt NewEKSClusterRole.Arn
+      RoleArn: !GetAtt EKSClusterRole.Arn
       ResourcesVpcConfig:
         SubnetIds:
-          - !Ref NewPubSub1
-          - !Ref NewPriSub2
-          - !Ref NewPriSub1
-          - !Ref NewPriSub2
-          - !Ref NewPriSub3
-          - !Ref NewPriSub4
+          - !Ref MyPubSub1
+          - !Ref MyPriSub2
+          - !Ref MyPriSub1
+          - !Ref MyPriSub2
+          - !Ref MyPriSub3
+          - !Ref MyPriSub4
       Tags:
         - Key: Name
           Value: !Sub "${AWS::StackName}-EksCluster"
-
-  NewNodeGroup:
+  MyNodeGroup:
     Type: AWS::EKS::Nodegroup
     Properties:
-      ClusterName: !Ref NewEKSCluster
-      NodeRole: !GetAtt NewEKSNodeGroupRole.Arn
+      ClusterName: !Ref MyEKSCluster
+      NodeRole: !GetAtt EKSNodeGroupRole.Arn
       Subnets:
-        - !Ref NewPriSub1
-        - !Ref NewPriSub3
+       # - !Ref MyPubSub1
+     #   - !Ref MyPubSub2
+        - !Ref MyPriSub1
+      #  - !Ref MyPriSub2
+        - !Ref MyPriSub3
+      #  - !Ref MyPriSub4
       ScalingConfig:
         MinSize: 1
         MaxSize: 3
@@ -376,8 +382,12 @@ Resources:
         - t3.medium
       Tags:
         Name: !Sub "${AWS::StackName}-Node-group"
-
+ 
+ 
+ 
+ 
 Outputs:
   RDSInstanceEndpoint:
     Description: "RDS Endpoint for MySQL Database"
-    Value: !GetAtt NewMySQLDatabase.Endpoint.Address
+    Value: !GetAtt MySQLDatabase.Endpoint.Address
+
